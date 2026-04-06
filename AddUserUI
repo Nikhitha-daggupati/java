@@ -1,0 +1,55 @@
+package library_db;
+
+import javax.swing.*;
+import java.awt.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+
+public class AddUserUI extends JFrame {
+
+    public AddUserUI(String roleType) {
+
+        setTitle("Add " + roleType);
+        setSize(300, 300);
+        setLocationRelativeTo(null);
+        setLayout(new GridLayout(5, 2, 10, 10));
+
+        JTextField usernameField = new JTextField();
+        JTextField passwordField = new JTextField();
+        JTextField phoneField = new JTextField();
+
+        JButton addBtn = new JButton("Add");
+
+        add(new JLabel("Username:"));
+        add(usernameField);
+        add(new JLabel("Password:"));
+        add(passwordField);
+        add(new JLabel("Phone:"));
+        add(phoneField);
+        add(new JLabel());
+        add(addBtn);
+
+        addBtn.addActionListener(e -> {
+            try {
+                Connection con = DBConnection.getConnection();
+                String sql = "INSERT INTO users (username, password, role, phone) VALUES (?, ?, ?, ?)";
+                PreparedStatement ps = con.prepareStatement(sql);
+                ps.setString(1, usernameField.getText());
+                ps.setString(2, passwordField.getText());
+                ps.setString(3, roleType);
+                ps.setString(4, phoneField.getText());
+                ps.executeUpdate();
+
+                JOptionPane.showMessageDialog(this, roleType + " Added Successfully!");
+                dispose();
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error: " + ex);
+            }
+        });
+
+        setVisible(true);
+    }
+}
+
+
