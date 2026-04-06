@@ -1,0 +1,25 @@
+package library_db;
+
+import java.sql.Connection;
+import java.sql.Statement;
+
+public class DBUpdateSlots {
+    public static void main(String[] args) {
+        try {
+            Connection con = DBConnection.getConnection();
+            if (con != null) {
+                Statement stmt = con.createStatement();
+                stmt.execute("CREATE TABLE IF NOT EXISTS reading_room_slots (" +
+                        "id INT PRIMARY KEY AUTO_INCREMENT, " +
+                        "student_id INT, " +
+                        "slot_date DATE, " +
+                        "slot_time VARCHAR(50), " +
+                        "UNIQUE(slot_date, slot_time))");
+                System.out.println("reading_room_slots table created.");
+                con.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
