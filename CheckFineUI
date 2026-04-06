@@ -1,0 +1,55 @@
+package library_db;
+
+import javax.swing.*;
+import java.awt.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+public class CheckFineUI extends JFrame {
+
+    public CheckFineUI() {
+
+        setTitle("Check Fine");
+        setSize(300, 200);
+        setLocationRelativeTo(null);
+        setLayout(new GridLayout(3, 2, 10, 10));
+
+        JTextField userIdField = new JTextField();
+        JButton checkBtn = new JButton("Check");
+        JLabel resultLabel = new JLabel("");
+
+        add(new JLabel("User ID:"));
+        add(userIdField);
+        add(new JLabel());
+        add(checkBtn);
+        add(new JLabel("Fine:"));
+        add(resultLabel);
+
+        checkBtn.addActionListener(e -> {
+            try {
+                int userId = Integer.parseInt(userIdField.getText());
+                // Recalculate and update the fines correctly based on due date
+                FineNotificationService.recalculateFineForUser(userId);
+
+                Connection con = DBConnection.getConnection();
+                String sql = "SELECT fine FROM issued_books WHERE student_id = ? AND return_date IS NULL";
+                PreparedStatement ps = con.prepareStatement(sql);
+                ps.setInt(1, userId);
+                ResultSet rs = ps.executeQuery();
+
+                int totalFine = 0;
+                while (rs.next()) {
+                    totalFine += rs.getInt("fine");
+                }
+
+                resultLabel.setText("₹ " + totalFine);
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error: " + ex);
+            }
+        });
+
+        setVisible(true);
+    }
+}
