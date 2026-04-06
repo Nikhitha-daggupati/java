@@ -1,0 +1,105 @@
+package library_db;
+
+import java.sql.*;
+import java.time.LocalDate;
+import java.util.Scanner;
+
+public class IssueService {
+
+    static Scanner sc = new Scanner(System.in);
+
+
+    public static void issueBook() {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            System.out.print("Enter Student ID: ");
+            int studentId = sc.nextInt();
+
+            System.out.print("Enter Book ID: ");
+            int bookId = sc.nextInt();
+
+
+            String check = "SELECT quantity FROM books WHERE id=?";
+            PreparedStatement ps1 = con.prepareStatement(check);
+            ps1.setInt(1, bookId);
+            ResultSet rs = ps1.executeQuery();
+
+            if (rs.next() && rs.getInt("quantity") > 0) {
+
+                LocalDate issueDate = LocalDate.now();
+                LocalDate dueDate = issueDate.plusDays(7);
+
+
+                String issue = "INSERT INTO issued_books(student_id, book_id, issue_date, due_date) VALUES(?,?,?,?)";
+                PreparedStatement ps2 = con.prepareStatement(issue);
+                ps2.setInt(1, studentId);
+                ps2.setInt(2, bookId);
+                ps2.setDate(3, Date.valueOf(issueDate));
+                ps2.setDate(4, Date.valueOf(dueDate));
+                ps2.executeUpdate();
+
+
+                String update = "UPDATE books SET quantity=quantity-1 WHERE id=?";
+                PreparedStatement ps3 = con.prepareStatement(update);
+                ps3.setInt(1, bookId);
+                ps3.executeUpdate();
+
+                System.out.println("Book Issued Successfully!");
+                System.out.println("Issue Date: " + issueDate);
+                System.out.println("Due Date: " + dueDate);
+
+            } else {
+                System.out.println("Book not available!");
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+
+    // 🔹 Return Book
+    public static void returnBook() {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            System.out.print("Enter Student ID: ");
+            int studentId = sc.nextInt();
+
+            System.out.print("Enter Book ID: ");
+            int bookId = sc.nextInt();
+
+            LocalDate returnDate = LocalDate.now();
+
+
+            String updateReturn = "UPDATE issued_books SET return_date=? WHERE student_id=? AND book_id=? AND return_date IS NULL";
+            PreparedStatement ps1 = con.prepareStatement(updateReturn);
+            ps1.setDate(1, Date.valueOf(returnDate));
+            ps1.setInt(2, studentId);
+            ps1.setInt(3, bookId);
+
+            int rows = ps1.executeUpdate();
+
+            if (rows > 0) {
+
+                String updateBook = "UPDATE books SET quantity=quantity+1 WHERE id=?";
+                PreparedStatement ps2 = con.prepareStatement(updateBook);
+                ps2.setInt(1, bookId);
+                ps2.executeUpdate();
+
+                System.out.println("Book Returned Successfully!");
+                System.out.println("Return Date: " + returnDate);
+
+            } else {
+                System.out.println("No active issue record found!");
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+}
