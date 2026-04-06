@@ -1,0 +1,36 @@
+package library_db;
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+
+public class GetDBSchema {
+    public static void main(String[] args) {
+        try {
+            Connection con = DBConnection.getConnection();
+            if (con == null) return;
+            DatabaseMetaData metaData = con.getMetaData();
+            
+            String[] types = {"TABLE"};
+            ResultSet rsTables = metaData.getTables(null, null, "%", types);
+            
+            System.out.println("====== DATABASE SCHEMA FOR library_db ======");
+            while (rsTables.next()) {
+                String tableName = rsTables.getString("TABLE_NAME");
+                System.out.println("\nTABLE: " + tableName);
+                System.out.println("-------------------------------------------------");
+                
+                ResultSet rsColumns = metaData.getColumns(null, null, tableName, "%");
+                while (rsColumns.next()) {
+                    String colName = rsColumns.getString("COLUMN_NAME");
+                    String colType = rsColumns.getString("TYPE_NAME");
+                    int colSize = rsColumns.getInt("COLUMN_SIZE");
+                    System.out.printf("  - %-20s : %s (%d)\n", colName, colType, colSize);
+                }
+            }
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
