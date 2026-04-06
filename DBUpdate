@@ -1,0 +1,33 @@
+package library_db;
+
+import java.sql.Connection;
+import java.sql.Statement;
+
+public class DBUpdate {
+    public static void main(String[] args) {
+        try {
+            Connection con = DBConnection.getConnection();
+            if (con != null) {
+                Statement stmt = con.createStatement();
+                try {
+                    stmt.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(15)");
+                    System.out.println("Success: Added 'phone' column to 'users' table.");
+                } catch (Exception ex) {
+                    System.out.println("Column might already exist or error occurred: " + ex.getMessage());
+                }
+                
+                try {
+                    stmt.execute("UPDATE issued_books SET fine = 0 WHERE fine IS NULL");
+                } catch(Exception ex) {
+                    System.out.println("Fine update might have failed: " + ex.getMessage());
+                }
+
+                con.close();
+            } else {
+                System.out.println("Could not connect to Database.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
