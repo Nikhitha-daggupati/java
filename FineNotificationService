@@ -1,0 +1,106 @@
+package library_db;
+
+import javax.swing.JOptionPane;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+
+public class FineNotificationService {
+
+    public static void recalculateFineForUser(int studentId) {
+        try {
+            Connection con = DBConnection.getConnection();
+            String sql = "SELECT book_id, due_date FROM issued_books WHERE student_id = ? AND return_date IS NULL";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, studentId);
+            ResultSet rs = ps.executeQuery();
+
+            LocalDate today = LocalDate.now();
+
+            String updateSql = "UPDATE issued_books SET fine = ? WHERE student_id = ? AND book_id = ? AND return_date IS NULL";
+            PreparedStatement updatePs = con.prepareStatement(updateSql);
+
+            while(rs.next()) {
+                int bookId = rs.getInt("book_id");
+                LocalDate dueDate = rs.getDate("due_date").toLocalDate();
+                
+                long daysLate = ChronoUnit.DAYS.between(dueDate, today);
+                int fineAmount = 0;
+                
+                if (daysLate > 0) {
+                    fineAmount = (int) (((daysLate - 1) / 4) * 5 + 5);
+                }
+                
+                updatePs.setInt(1, fineAmount);
+                updatePs.setInt(2, studentId);
+                updatePs.setInt(3, bookId);
+                updatePs.executeUpdate();
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void processDailyNotifications() {
+        try {
+            Connection con = DBConnection.getConnection();
+            // Get all unreturned books
+            // We join with the users table to retrieve the user's phone number mapping user.id -> issued_books.student_id
+            String sql = "SELECT i.student_id, i.book_id, i.due_date, i.fine, u.phone " +
+                         "FROM issued_books i JOIN users u ON i.student_id = u.id " +
+                         "WHERE i.return_date IS NULL";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            LocalDate today = LocalDate.now();
+
+            // Prepare update for fines
+            String updateFineSql = "UPDATE issued_books SET fine = ? WHERE student_id = ? AND book_id = ? AND return_date IS NULL";
+            PreparedStatement updatePs = con.prepareStatement(updateFineSql);
+
+            while(rs.next()) {
+                int studentId = rs.getInt("student_id");
+                int bookId = rs.getInt("book_id");
+                LocalDate dueDate = rs.getDate("due_date").toLocalDate();
+                String phone = rs.getString("phone");
+                
+                long daysLate = ChronoUnit.DAYS.between(dueDate, today);
+                int fineAmount = 0;
+                
+                if (daysLate > 0) {
+                    fineAmount = (int) (((daysLate - 1) / 4) * 5 + 5);
+                }
+
+                updatePs.setInt(1, fineAmount);
+                updatePs.setInt(2, studentId);
+                updatePs.setInt(3, bookId);
+                updatePs.executeUpdate();
+
+                // Message sent in advance (e.g. 1 day before due)
+                if (today.plusDays(1).equals(dueDate)) {
+                    sendSMS(phone, "Reminder: Your book " + bookId + " is due tomorrow. Please return it to avoid fines.");
+                }
+
+                // Fine message while deadline crosses
+                if (daysLate > 0) {
+                    sendSMS(phone, "Fine need be paid. Total amount: ₹" + fineAmount + ". Reason: You have crossed the deadline for returning book " + bookId + ".");
+                }
+            }
+            JOptionPane.showMessageDialog(null, "Daily Fines and Notifications Processed Successfully.");
+        } catch(Exception e) {
+            JOptionPane.showMessageDialog(null, "Error Processing Notifications. They might not have phone column available in DB: " + e.getMessage());
+        }
+    }
+
+    private static void sendSMS(String phone, String message) {
+        if (phone == null || phone.trim().isEmpty()) {
+            System.out.println("No phone number to send message: " + message);
+        } else {
+            System.out.println("=================================================");
+            System.out.println("[SMS to " + phone + "]: " + message);
+            System.out.println("=================================================");
+        }
+    }
+}
