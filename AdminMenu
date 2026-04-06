@@ -1,0 +1,49 @@
+package library_db;
+
+import java.util.Scanner;
+
+public class AdminMenu {
+
+    public static void adminMenu() {
+
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            System.out.println("\n--- ADMIN MENU ---");
+            System.out.println("1. Add Book");
+            System.out.println("2. View Books");
+            System.out.println("3. Delete Book");
+            System.out.println("4. Update Quantity");
+            System.out.println("5. Logout");
+
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+
+                case 1:
+                    BookService.addBook();
+                    break;
+
+                case 2:
+                    BookService.viewBooks();
+                    break;
+
+                case 3:
+                    BookService.deleteBook();
+                    break;
+
+                case 4:
+                    BookService.updateQuantity();
+                    break;
+
+                case 5:
+                    System.out.println("Logging out...");
+                    return;
+
+                default:
+                    System.out.println("Invalid choice! Please try again.");
+            }
+        }
+    }
+}
