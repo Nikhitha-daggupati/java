@@ -1,0 +1,46 @@
+package library_db;
+
+import javax.swing.*;
+
+public class IssueUI extends JFrame {
+
+    JTextField studentField, bookField;
+
+    public IssueUI() {
+
+        setTitle("Issue Book");
+        setSize(300, 220);
+        setLayout(null);
+        setLocationRelativeTo(null);
+
+        JLabel sLabel = new JLabel("User ID:");
+        sLabel.setBounds(30, 40, 100, 25);
+        add(sLabel);
+
+        studentField = new JTextField(String.valueOf(Session.loggedInUserId));
+        studentField.setBounds(120, 40, 120, 25);
+        studentField.setEditable(false);
+        add(studentField);
+
+        JLabel bLabel = new JLabel("Book ID:");
+        bLabel.setBounds(30, 80, 100, 25);
+        add(bLabel);
+
+        bookField = new JTextField();
+        bookField.setBounds(120, 80, 120, 25);
+        add(bookField);
+
+        JButton issueBtn = new JButton("Issue");
+        issueBtn.setBounds(80, 130, 120, 30);
+        add(issueBtn);
+
+        issueBtn.addActionListener(e -> {
+            int studentId = Integer.parseInt(studentField.getText());
+            int bookId = Integer.parseInt(bookField.getText());
+
+            BookService.issueBook(studentId, bookId);
+        });
+
+        setVisible(true);
+    }
+}
