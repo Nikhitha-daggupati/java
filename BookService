@@ -1,0 +1,261 @@
+package library_db;
+import javax.swing.JOptionPane;
+import java.sql.*;
+import java.util.Scanner;
+import javax.swing.*;
+
+
+public class BookService {
+
+    static Scanner sc = new Scanner(System.in);
+
+
+    public static void addBook() {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            sc.nextLine();
+            System.out.print("Enter Title: ");
+            String title = sc.nextLine();
+
+            System.out.print("Enter Author: ");
+            String author = sc.nextLine();
+
+            System.out.print("Enter Quantity: ");
+            int qty = sc.nextInt();
+
+            String sql = "INSERT INTO books(title, author, quantity) VALUES (?, ?, ?)";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, title);
+            ps.setString(2, author);
+            ps.setInt(3, qty);
+
+            ps.executeUpdate();
+            System.out.println("Book Added Successfully!");
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+
+
+    public static void viewBooks() {
+        try {
+            Connection con = DBConnection.getConnection();
+            Statement st = con.createStatement();
+            ResultSet rs = st.executeQuery("SELECT * FROM books");
+
+            System.out.println("\nID | Title | Author | Quantity");
+
+            while (rs.next()) {
+                System.out.println(
+                        rs.getInt("id") + " | " +
+                                rs.getString("title") + " | " +
+                                rs.getString("author") + " | " +
+                                rs.getInt("quantity")
+                );
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+
+
+    public static void deleteBook() {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            System.out.print("Enter Book ID to delete: ");
+            int id = sc.nextInt();
+
+            String sql = "DELETE FROM books WHERE id=?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, id);
+
+            int rows = ps.executeUpdate();
+
+            if (rows > 0)
+                System.out.println("Book Deleted Successfully!");
+            else
+                System.out.println("Book not found!");
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+
+    public static void updateQuantity() {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            System.out.print("Enter Book ID: ");
+            int id = sc.nextInt();
+
+            System.out.print("Enter New Quantity: ");
+            int qty = sc.nextInt();
+
+            String sql = "UPDATE books SET quantity=? WHERE id=?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, qty);
+            ps.setInt(2, id);
+
+            int rows = ps.executeUpdate();
+
+            if (rows > 0)
+                System.out.println("Quantity Updated Successfully!");
+            else
+                System.out.println("Book not found!");
+
+            con.close();
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e);
+        }
+    }
+    public static void issueBook(int studentId, int bookId) {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            // Validate User ID
+            String userSql = "SELECT id FROM users WHERE id=?";
+            PreparedStatement psUser = con.prepareStatement(userSql);
+            psUser.setInt(1, studentId);
+            ResultSet rsUser = psUser.executeQuery();
+            if (!rsUser.next()) {
+                JOptionPane.showMessageDialog(null, "Invalid User ID!");
+                con.close();
+                return;
+            }
+
+            // Check book quantity
+            String checkSql = "SELECT quantity FROM books WHERE id=?";
+            PreparedStatement ps1 = con.prepareStatement(checkSql);
+            ps1.setInt(1, bookId);
+            ResultSet rs = ps1.executeQuery();
+
+            if (rs.next()) {
+                int quantity = rs.getInt("quantity");
+
+                if (quantity > 0) {
+
+                    Date issueDate = new Date(System.currentTimeMillis());
+
+                    // Due date = 7 days
+                    long sevenDays = 7L * 24 * 60 * 60 * 1000;
+                    Date dueDate = new Date(issueDate.getTime() + sevenDays);
+
+                    // Insert into issued_books
+                    String insertSql = "INSERT INTO issued_books(student_id, book_id, issue_date, due_date) VALUES(?,?,?,?)";
+                    PreparedStatement ps2 = con.prepareStatement(insertSql);
+                    ps2.setInt(1, studentId);
+                    ps2.setInt(2, bookId);
+                    ps2.setDate(3, issueDate);
+                    ps2.setDate(4, dueDate);
+                    ps2.executeUpdate();
+
+                    // Reduce quantity
+                    String updateQty = "UPDATE books SET quantity = quantity - 1 WHERE id=?";
+                    PreparedStatement ps3 = con.prepareStatement(updateQty);
+                    ps3.setInt(1, bookId);
+                    ps3.executeUpdate();
+
+                    JOptionPane.showMessageDialog(null,
+                            "Book Issued Successfully!\nIssue Date: " + issueDate +
+                                    "\nDue Date: " + dueDate);
+
+                } else {
+                    JOptionPane.showMessageDialog(null, "Book Out of Stock!");
+                }
+
+            } else {
+                JOptionPane.showMessageDialog(null, "Book Not Found!");
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e);
+        }
+    }
+    public static void returnBook(int studentId, int bookId) {
+        try {
+            Connection con = DBConnection.getConnection();
+
+            String sql = "SELECT due_date FROM issued_books WHERE student_id=? AND book_id=? AND return_date IS NULL";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, studentId);
+            ps.setInt(2, bookId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                Date dueDate = rs.getDate("due_date");
+                Date returnDate = new Date(System.currentTimeMillis());
+
+                long diffInMillis = returnDate.getTime() - dueDate.getTime();
+                long lateDays = diffInMillis / (1000 * 60 * 60 * 24);
+
+                double fine = 0;
+
+                if (lateDays > 0) {
+                    fine = lateDays * 5;  // ₹5 per day
+                }
+
+                // Update issued_books
+                String update = "UPDATE issued_books SET return_date=?, fine=? WHERE student_id=? AND book_id=? AND return_date IS NULL";
+                PreparedStatement ps2 = con.prepareStatement(update);
+                ps2.setDate(1, returnDate);
+                ps2.setDouble(2, fine);
+                ps2.setInt(3, studentId);
+                ps2.setInt(4, bookId);
+                ps2.executeUpdate();
+
+                // Increase quantity
+                String qtyUpdate = "UPDATE books SET quantity = quantity + 1 WHERE id=?";
+                PreparedStatement ps3 = con.prepareStatement(qtyUpdate);
+                ps3.setInt(1, bookId);
+                ps3.executeUpdate();
+
+                if (fine > 0) {
+                    JOptionPane.showMessageDialog(null,
+                            "Book Returned!\nLate by " + lateDays +
+                                    " days\nFine: ₹" + fine);
+                } else {
+                    JOptionPane.showMessageDialog(null,
+                            "Book Returned Successfully!\nNo Fine.");
+                }
+
+            } else {
+                JOptionPane.showMessageDialog(null,
+                        "No active issue record found!");
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e);
+        }
+    }
+    public static ResultSet getAvailableBooks() {
+        try {
+            Connection con = DBConnection.getConnection();
+            String sql = "SELECT id, title, author, quantity FROM books WHERE quantity > 0";
+            PreparedStatement ps = con.prepareStatement(sql);
+            return ps.executeQuery();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e);
+        }
+        return null;
+    }
+
+
+
+}
